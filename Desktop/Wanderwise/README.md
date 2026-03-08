@@ -1,2 +1,4 @@
-# Lexicon-Based-Sentiment-Analysis
-# wanderwise
+# Wanderwise
+IB Computer Science HL IA
+
+Travel App
