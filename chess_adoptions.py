@@ -24,10 +24,6 @@ def download_month_pgn(archive_url):
 
 
 def parse_pgn_games(pgn_text):
-    """
-    Yield dicts with the fields we need from each game header.
-    Returns: white, black, result, time_control, utc_datetime
-    """
     # split on blank lines before [Event
     blocks = re.split(r'\n(?=\[Event )', pgn_text.strip())
 
@@ -65,11 +61,11 @@ def parse_pgn_games(pgn_text):
 
 
 def format_tc(tc):
-    m = re.match(r'^(\d+)(?:\+(\d+))?$', tc)
+    m = re.match(r'^(\d+)(?:\+(\d+(?:\.\d+)?))?$', tc)
     if not m:
         return tc
     base = int(m.group(1))
-    inc = int(m.group(2)) if m.group(2) else 0
+    inc = float(m.group(2)) if m.group(2) else 0
 
     def fmt_secs(s):
         if s >= 60 and s % 60 == 0:
@@ -79,8 +75,11 @@ def format_tc(tc):
         else:
             return f"{s}sec"
 
+    def fmt_inc(i):
+        return f"{i:g}sec"
+
     base_str = fmt_secs(base)
-    return f"{base_str}+{inc}sec" if inc else base_str
+    return f"{base_str}+{fmt_inc(inc)}" if inc else base_str
 
 
 # adoption finder
