@@ -11,6 +11,14 @@ BASE = f"https://api.chess.com/pub/player/{USERNAME}"
 
 # download/parse pgns
 
+def validate_user():
+    r = requests.get(BASE + "/stats", headers=HEADERS, timeout=30)
+    if r.status_code == 404:
+        print(f"Error: user '{USERNAME}' not found on chess.com.")
+        exit(1)
+    r.raise_for_status()
+
+
 def get_archives():
     r = requests.get(f"{BASE}/games/archives", headers=HEADERS, timeout=30)
     r.raise_for_status()
@@ -54,7 +62,7 @@ def parse_pgn_games(pgn_text):
         yield {
             "white": white.lower(),
             "black": black.lower(),
-            "result": result,        # 1-0, 0-1, 1/2-1/2
+            "result": result,     
             "time_control": tc,
             "dt": dt,
         }
@@ -76,7 +84,7 @@ def format_tc(tc):
             return f"{s}sec"
 
     def fmt_inc(i):
-        return f"{i:g}sec"
+        return f"{i:g}sec" 
 
     base_str = fmt_secs(base)
     return f"{base_str}+{fmt_inc(inc)}" if inc else base_str
@@ -198,6 +206,7 @@ def find_adoptions(games, username):
 # main
 
 def main():
+    validate_user()
     print(f"\nFetching archives for {USERNAME}...")
     archives = get_archives()
     print(f"Found {len(archives)} monthly archives\n")
