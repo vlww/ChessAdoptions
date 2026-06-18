@@ -54,9 +54,7 @@
     margin-bottom: 48px;
   }
 
-  .wordmark span {
-    color: var(--amber);
-  }
+  .wordmark span { color: var(--amber); }
 
   .input-row {
     display: flex;
@@ -140,9 +138,7 @@
     text-align: center;
   }
 
-  #results-view {
-    display: none;
-  }
+  #results-view { display: none; }
 
   .profile-strip {
     display: flex;
@@ -285,15 +281,8 @@
   .adoptions-table tbody tr:last-child td { border-bottom: none; }
 
   .td-num { color: var(--muted); font-size: 11px; width: 36px; }
-
   .td-opponent { color: var(--bright); font-weight: 500; }
-
-  .td-tc {
-    color: var(--muted);
-    font-size: 11px;
-    white-space: nowrap;
-  }
-
+  .td-tc { color: var(--muted); font-size: 11px; white-space: nowrap; }
   .td-date { color: var(--muted); font-size: 11px; white-space: nowrap; }
 
   .td-streak {
@@ -347,7 +336,6 @@
   </div>
 
   <div id="results-view">
-
     <div class="profile-strip">
       <div id="profile-avatar-wrap"></div>
       <div class="profile-info">
@@ -359,25 +347,25 @@
 
     <div class="stats-row">
       <div class="stat-cell">
-        <div class="stat-value" id="stat-adoptions">—</div>
-        <div class="stat-label">adoptions</div>
+        <div class="stat-value" id="stat-games">—</div>
+        <div class="stat-label">games scanned</div>
       </div>
       <div class="stat-cell">
-        <div class="stat-value" id="stat-best">—</div>
-        <div class="stat-label">best streak</div>
+        <div class="stat-value" id="stat-adoptions">—</div>
+        <div class="stat-label">adoptions</div>
       </div>
       <div class="stat-cell">
         <div class="stat-value" id="stat-opponents">—</div>
         <div class="stat-label">opponents adopted</div>
       </div>
       <div class="stat-cell">
-        <div class="stat-value" id="stat-games">—</div>
-        <div class="stat-label">games scanned</div>
+        <div class="stat-value" id="stat-best">—</div>
+        <div class="stat-label">best streak</div>
       </div>
     </div>
 
     <div class="section-header">
-      <span class="section-title">adoption log</span>
+      <span class="section-title">adoptions</span>
       <span class="section-count" id="section-count"></span>
     </div>
 
@@ -387,8 +375,8 @@
           <th class="td-num">#</th>
           <th>opponent</th>
           <th class="td-tc">time control</th>
-          <th class="td-date">date</th>
           <th>streak</th>
+          <th class="td-date">date</th>
         </tr>
       </thead>
       <tbody id="adoptions-tbody"></tbody>
@@ -397,12 +385,10 @@
     <div id="empty-state" class="empty-state" style="display:none">
       no adoptions found — go get some wins
     </div>
-
   </div>
 </div>
 
 <script>
-const HEADERS = { "User-Agent": "ChessAdoptionTracker/1.0" };
 
 function formatTC(tc) {
   const m = tc.match(/^(\d+)(?:\+(\d+(?:\.\d+)?))?$/);
@@ -411,33 +397,36 @@ function formatTC(tc) {
   const inc = m[2] ? parseFloat(m[2]) : 0;
 
   function fmtSecs(s) {
-    if (s >= 60 && s % 60 === 0) return `${s / 60}min`;
-    if (s >= 60) return `${Math.floor(s/60)}min${s%60}sec`;
-    return `${s}sec`;
+    if (s >= 60 && s % 60 === 0) return `${s / 60} min`;
+    if (s >= 60) return `${Math.floor(s / 60)} min ${s % 60} sec`;
+    return `${s} sec`;
   }
 
   function fmtInc(i) {
-    return `${parseFloat(i.toPrecision(4)).toString()}sec`;
+    return `${parseFloat(i.toPrecision(4)).toString()} sec`;
   }
 
-  return inc ? `${fmtSecs(base)}+${fmtInc(inc)}` : fmtSecs(base);
+  return inc ? `${fmtSecs(base)} + ${fmtInc(inc)}` : fmtSecs(base);
 }
 
-function parsePGN(pgn, username) {
-  const blocks = pgn.split(/\n(?=\[Event )/).filter(b => b.trim());
-  const games = [];
+function parseGamesJSON(games, username) {
   const uname = username.toLowerCase();
+  const result = [];
 
-  for (const block of blocks) {
-    const tag = name => { const m = block.match(new RegExp(`\\[${name} "([^"]*)"`)); return m ? m[1] : null; };
-    const white = tag("White")?.toLowerCase();
-    const black = tag("Black")?.toLowerCase();
-    const result = tag("Result");
-    const tc = tag("TimeControl");
+  for (const g of games) {
+    const white = g.white?.username?.toLowerCase();
+    const black = g.black?.username?.toLowerCase();
+    if (!white || !black) continue;
+
+    const pgn = g.pgn || "";
+    const tag = name => { const m = pgn.match(new RegExp(`\\[${name} "([^"]*)"`)); return m ? m[1] : null; };
+
+    const tc = tag("TimeControl") || (g.time_control ? String(g.time_control) : null);
     const utcDate = tag("UTCDate");
     const utcTime = tag("UTCTime") || "00:00:00";
+    const resultStr = tag("Result") || (g.white?.result === "win" ? "1-0" : g.black?.result === "win" ? "0-1" : "1/2-1/2");
 
-    if (!white || !black || !result || !tc || !utcDate) continue;
+    if (!tc || !utcDate) continue;
 
     let dt;
     try { dt = new Date(`${utcDate.replace(/\./g, '-')}T${utcTime}Z`); }
@@ -447,19 +436,19 @@ function parsePGN(pgn, username) {
     let opponent, outcome;
     if (white === uname) {
       opponent = black;
-      outcome = result === "1-0" ? "win" : result === "0-1" ? "loss" : "draw";
+      outcome = resultStr === "1-0" ? "win" : resultStr === "0-1" ? "loss" : "draw";
     } else if (black === uname) {
       opponent = white;
-      outcome = result === "0-1" ? "win" : result === "1-0" ? "loss" : "draw";
+      outcome = resultStr === "0-1" ? "win" : resultStr === "1-0" ? "loss" : "draw";
     } else continue;
 
-    games.push({ opponent, time_control: tc, outcome, dt });
+    result.push({ opponent, time_control: tc, outcome, dt });
   }
 
-  return games;
+  return result;
 }
 
-function findAdoptions(games, username) {
+function findAdoptions(games) {
   games.sort((a, b) => a.dt - b.dt);
 
   const adoptions = [];
@@ -514,9 +503,9 @@ function findAdoptions(games, username) {
 }
 
 function show(id) {
-  ["search-view","progress-view","results-view"].forEach(v => {
+  ["search-view", "progress-view", "results-view"].forEach(v => {
     const el = document.getElementById(v);
-    el.style.display = v === id ? (id === "search-view" || id === "progress-view" ? "flex" : "block") : "none";
+    el.style.display = v === id ? (id === "results-view" ? "block" : "flex") : "none";
   });
 }
 
@@ -535,9 +524,11 @@ function renderResults(profile, adoptions, totalGames) {
   document.getElementById("profile-username").textContent = profile.username;
 
   const joined = profile.joined ? new Date(profile.joined * 1000).getFullYear() : "—";
-  const rating = profile.chess_rapid?.last?.rating || profile.chess_blitz?.last?.rating || profile.chess_bullet?.last?.rating || "—";
+  const bullet = profile.chess_bullet?.last?.rating || "—";
+  const blitz  = profile.chess_blitz?.last?.rating  || "—";
+  const rapid  = profile.chess_rapid?.last?.rating  || "—";
   document.getElementById("profile-meta").innerHTML =
-    `member since <span>${joined}</span> · rating <span>${rating}</span>`;
+    `member since <span>${joined}</span><br>bullet <span>${bullet}</span> · blitz <span>${blitz}</span> · rapid <span>${rapid}</span>`;
 
   const opponents = new Set(adoptions.map(a => a.opponent)).size;
   const best = adoptions.length ? Math.max(...adoptions.map(a => a.streak)) : 0;
@@ -562,8 +553,8 @@ function renderResults(profile, adoptions, totalGames) {
         <td class="td-num">${i + 1}</td>
         <td class="td-opponent">${a.opponent}</td>
         <td class="td-tc">${tc}</td>
-        <td class="td-date">${date}</td>
         <td class="td-streak">${a.streak}<span class="streak-suffix">×</span></td>
+        <td class="td-date">${date}</td>
       `;
       tbody.appendChild(tr);
     });
@@ -572,7 +563,6 @@ function renderResults(profile, adoptions, totalGames) {
   show("results-view");
 }
 
-
 async function run(username) {
   const err = document.getElementById("search-error");
   err.textContent = "";
@@ -580,46 +570,46 @@ async function run(username) {
   setProgress(0, "checking user…");
 
   try {
-    const profileRes = await fetch(`https://api.chess.com/pub/player/${username}`, { headers: HEADERS });
+    const profileRes = await fetch(`https://api.chess.com/pub/player/${username}`);
     if (profileRes.status === 404) {
       show("search-view");
       err.textContent = `user "${username}" not found on chess.com`;
       document.getElementById("search-btn").disabled = false;
       return;
     }
-    if (!profileRes.ok) throw new Error(`HTTP ${profileRes.status}`);
+    if (!profileRes.ok) throw new Error(`profile fetch failed: ${profileRes.status}`);
     const profile = await profileRes.json();
 
-    const statsRes = await fetch(`https://api.chess.com/pub/player/${username}/stats`, { headers: HEADERS });
+    const statsRes = await fetch(`https://api.chess.com/pub/player/${username}/stats`);
     const stats = statsRes.ok ? await statsRes.json() : {};
     profile.chess_rapid  = stats.chess_rapid;
     profile.chess_blitz  = stats.chess_blitz;
     profile.chess_bullet = stats.chess_bullet;
 
     setProgress(5, "fetching archive list…");
-    const archivesRes = await fetch(`https://api.chess.com/pub/player/${username}/games/archives`, { headers: HEADERS });
+    const archivesRes = await fetch(`https://api.chess.com/pub/player/${username}/games/archives`);
     if (!archivesRes.ok) throw new Error("failed to fetch archives");
     const { archives } = await archivesRes.json();
 
     const allGames = [];
     for (let i = 0; i < archives.length; i++) {
-      const url = archives[i];
-      const month = url.split("/").slice(-2).join("/");
+      const archiveUrl = archives[i]; 
+      const month = archiveUrl.split("/").slice(-2).join("/");
       const pct = 5 + Math.round(((i + 1) / archives.length) * 90);
       setProgress(pct, `${month}  (${i + 1}/${archives.length})`);
 
       try {
-        const r = await fetch(url + "/pgn", { headers: HEADERS });
+        const r = await fetch(archiveUrl);
         if (!r.ok) continue;
-        const pgn = await r.text();
-        allGames.push(...parsePGN(pgn, username));
+        const data = await r.json();
+        allGames.push(...parseGamesJSON(data.games || [], username));
       } catch { /* skip month */ }
     }
 
     setProgress(97, "scanning for adoptions…");
-    await new Promise(r => setTimeout(r, 50)); 
+    await new Promise(r => setTimeout(r, 50));
 
-    const adoptions = findAdoptions(allGames, username);
+    const adoptions = findAdoptions(allGames);
     setProgress(100, "done");
 
     await new Promise(r => setTimeout(r, 200));
