@@ -285,6 +285,11 @@
   .td-tc { color: var(--muted); font-size: 11px; white-space: nowrap; }
   .td-date { color: var(--muted); font-size: 11px; white-space: nowrap; }
 
+  .opponent-rating {
+  color: var(--muted);
+  font-weight: 400;
+  }
+
   .td-streak {
     color: var(--amber);
     font-weight: 700;
@@ -414,9 +419,13 @@ function parseGamesJSON(games, username) {
   const result = [];
 
   for (const g of games) {
-    const white = g.white?.username?.toLowerCase();
-    const black = g.black?.username?.toLowerCase();
-    if (!white || !black) continue;
+    const whiteRaw = g.white?.username;
+    const blackRaw = g.black?.username;
+
+    const white = whiteRaw?.toLowerCase();
+    const black = blackRaw?.toLowerCase();
+
+  if (!white || !black) continue;
 
     const pgn = g.pgn || "";
     const tag = name => { const m = pgn.match(new RegExp(`\\[${name} "([^"]*)"`)); return m ? m[1] : null; };
@@ -435,14 +444,28 @@ function parseGamesJSON(games, username) {
 
     let opponent, outcome;
     if (white === uname) {
-      opponent = black;
+      opponent = blackRaw;
       outcome = resultStr === "1-0" ? "win" : resultStr === "0-1" ? "loss" : "draw";
     } else if (black === uname) {
-      opponent = white;
+      opponent = whiteRaw;
       outcome = resultStr === "0-1" ? "win" : resultStr === "1-0" ? "loss" : "draw";
-    } else continue;
+    }
 
-    result.push({ opponent, time_control: tc, outcome, dt });
+    let opponentRating = null;
+
+    if (white === uname) {
+      opponentRating = g.black?.rating;  
+    } else if (black === uname) {
+      opponentRating = g.white?.rating; 
+    }
+
+    result.push({
+      opponent,
+      time_control: tc,
+      outcome,
+      dt,
+      rating: opponentRating
+    });
   }
 
   return result;
@@ -461,6 +484,7 @@ function findAdoptions(games) {
         opponent: curOpponent,
         time_control: curTC,
         streak: bestStreak.length,
+        rating: bestStreak[bestStreak.length - 1].rating,
         date_start: bestStreak[0].dt,
         date_end: bestStreak[bestStreak.length - 1].dt,
       });
@@ -551,7 +575,10 @@ function renderResults(profile, adoptions, totalGames) {
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td class="td-num">${i + 1}</td>
-        <td class="td-opponent">${a.opponent}</td>
+        <td class="td-opponent">
+          ${a.opponent}
+          ${a.rating ? `<span class="opponent-rating">(${a.rating})</span>` : ""}
+        </td>
         <td class="td-tc">${tc}</td>
         <td class="td-streak">${a.streak}<span class="streak-suffix">×</span></td>
         <td class="td-date">${date}</td>
