@@ -1,3 +1,5 @@
+# only for use in terminal
+
 import requests
 import time
 import re

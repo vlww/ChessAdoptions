@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>adoption tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0d0d0d;
+    --surface:  #141414;
+    --border:   #252525;
+    --muted:    #555;
+    --text:     #d8d8d8;
+    --bright:   #f0f0f0;
+    --amber:    #c8a96e;
+    --amber-dim:#7a6340;
+    --red:      #c06060;
+    --green:    #6a9f6a;
+  }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  #app {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+  }
+
+  #search-view {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 80vh;
+    gap: 0;
+  }
+
+  .wordmark {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 48px;
+  }
+
+  .wordmark span {
+    color: var(--amber);
+  }
+
+  .input-row {
+    display: flex;
+    gap: 0;
+    width: 100%;
+    max-width: 420px;
+  }
+
+  #username-input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-right: none;
+    color: var(--bright);
+    font-family: inherit;
+    font-size: 14px;
+    padding: 11px 16px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  #username-input::placeholder { color: var(--muted); }
+  #username-input:focus { border-color: var(--amber-dim); }
+
+  #search-btn {
+    background: var(--amber);
+    border: 1px solid var(--amber);
+    color: #0d0d0d;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    padding: 11px 20px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+  }
+
+  #search-btn:hover { opacity: 0.85; }
+  #search-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  #search-error {
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--red);
+    height: 16px;
+  }
+
+  #progress-view {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 80vh;
+    gap: 24px;
+  }
+
+  .progress-label {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+
+  .progress-bar-wrap {
+    width: 320px;
+    height: 2px;
+    background: var(--border);
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--amber);
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+
+  .progress-status {
+    font-size: 11px;
+    color: var(--muted);
+    max-width: 320px;
+    text-align: center;
+  }
+
+  #results-view {
+    display: none;
+  }
+
+  .profile-strip {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 28px;
+  }
+
+  .profile-avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 2px;
+    background: var(--surface);
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  .profile-avatar-placeholder {
+    width: 52px;
+    height: 52px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 20px;
+  }
+
+  .profile-info { flex: 1; }
+
+  .profile-username {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--bright);
+    letter-spacing: -0.02em;
+  }
+
+  .profile-meta {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .profile-meta span { color: var(--text); }
+
+  .new-search-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    padding: 7px 14px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+
+  .new-search-btn:hover { border-color: var(--amber-dim); color: var(--text); }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    margin-bottom: 32px;
+  }
+
+  .stat-cell {
+    background: var(--bg);
+    padding: 18px 20px;
+  }
+
+  .stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--amber);
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+
+  .stat-label {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-top: 6px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .section-title {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .section-count {
+    font-size: 11px;
+    color: var(--amber-dim);
+  }
+
+  .adoptions-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .adoptions-table th {
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: left;
+    padding: 0 12px 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-weight: 400;
+  }
+
+  .adoptions-table th:last-child { text-align: right; padding-right: 0; }
+
+  .adoptions-table td {
+    padding: 9px 12px 9px 0;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+    color: var(--text);
+  }
+
+  .adoptions-table td:last-child { text-align: right; padding-right: 0; }
+
+  .adoptions-table tbody tr:hover td { color: var(--bright); }
+  .adoptions-table tbody tr:last-child td { border-bottom: none; }
+
+  .td-num { color: var(--muted); font-size: 11px; width: 36px; }
+
+  .td-opponent { color: var(--bright); font-weight: 500; }
+
+  .td-tc {
+    color: var(--muted);
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .td-date { color: var(--muted); font-size: 11px; white-space: nowrap; }
+
+  .td-streak {
+    color: var(--amber);
+    font-weight: 700;
+    font-size: 14px;
+    white-space: nowrap;
+  }
+
+  .streak-suffix {
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--amber-dim);
+    margin-left: 1px;
+  }
+
+  .empty-state {
+    padding: 48px 0;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+  }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); }
+
+  @media (max-width: 600px) {
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .td-tc, .td-date { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="search-view">
+    <p class="wordmark">chess.com adoption tracker</p>
+    <div class="input-row">
+      <input id="username-input" type="text" placeholder="username" autocomplete="off" spellcheck="false" />
+      <button id="search-btn">RUN</button>
+    </div>
+    <div id="search-error"></div>
+  </div>
+
+  <div id="progress-view">
+    <p class="progress-label">fetching archives</p>
+    <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progress-fill"></div></div>
+    <p class="progress-status" id="progress-status">—</p>
+  </div>
+
+  <div id="results-view">
+
+    <div class="profile-strip">
+      <div id="profile-avatar-wrap"></div>
+      <div class="profile-info">
+        <div class="profile-username" id="profile-username"></div>
+        <div class="profile-meta" id="profile-meta"></div>
+      </div>
+      <button class="new-search-btn" id="new-search-btn">← new search</button>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-cell">
+        <div class="stat-value" id="stat-adoptions">—</div>
+        <div class="stat-label">adoptions</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-value" id="stat-best">—</div>
+        <div class="stat-label">best streak</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-value" id="stat-opponents">—</div>
+        <div class="stat-label">opponents adopted</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-value" id="stat-games">—</div>
+        <div class="stat-label">games scanned</div>
+      </div>
+    </div>
+
+    <div class="section-header">
+      <span class="section-title">adoption log</span>
+      <span class="section-count" id="section-count"></span>
+    </div>
+
+    <table class="adoptions-table">
+      <thead>
+        <tr>
+          <th class="td-num">#</th>
+          <th>opponent</th>
+          <th class="td-tc">time control</th>
+          <th class="td-date">date</th>
+          <th>streak</th>
+        </tr>
+      </thead>
+      <tbody id="adoptions-tbody"></tbody>
+    </table>
+
+    <div id="empty-state" class="empty-state" style="display:none">
+      no adoptions found — go get some wins
+    </div>
+
+  </div>
+</div>
+
+<script>
+const HEADERS = { "User-Agent": "ChessAdoptionTracker/1.0" };
+
+function formatTC(tc) {
+  const m = tc.match(/^(\d+)(?:\+(\d+(?:\.\d+)?))?$/);
+  if (!m) return tc;
+  const base = parseInt(m[1]);
+  const inc = m[2] ? parseFloat(m[2]) : 0;
+
+  function fmtSecs(s) {
+    if (s >= 60 && s % 60 === 0) return `${s / 60}min`;
+    if (s >= 60) return `${Math.floor(s/60)}min${s%60}sec`;
+    return `${s}sec`;
+  }
+
+  function fmtInc(i) {
+    return `${parseFloat(i.toPrecision(4)).toString()}sec`;
+  }
+
+  return inc ? `${fmtSecs(base)}+${fmtInc(inc)}` : fmtSecs(base);
+}
+
+function parsePGN(pgn, username) {
+  const blocks = pgn.split(/\n(?=\[Event )/).filter(b => b.trim());
+  const games = [];
+  const uname = username.toLowerCase();
+
+  for (const block of blocks) {
+    const tag = name => { const m = block.match(new RegExp(`\\[${name} "([^"]*)"`)); return m ? m[1] : null; };
+    const white = tag("White")?.toLowerCase();
+    const black = tag("Black")?.toLowerCase();
+    const result = tag("Result");
+    const tc = tag("TimeControl");
+    const utcDate = tag("UTCDate");
+    const utcTime = tag("UTCTime") || "00:00:00";
+
+    if (!white || !black || !result || !tc || !utcDate) continue;
+
+    let dt;
+    try { dt = new Date(`${utcDate.replace(/\./g, '-')}T${utcTime}Z`); }
+    catch { continue; }
+    if (isNaN(dt)) continue;
+
+    let opponent, outcome;
+    if (white === uname) {
+      opponent = black;
+      outcome = result === "1-0" ? "win" : result === "0-1" ? "loss" : "draw";
+    } else if (black === uname) {
+      opponent = white;
+      outcome = result === "0-1" ? "win" : result === "1-0" ? "loss" : "draw";
+    } else continue;
+
+    games.push({ opponent, time_control: tc, outcome, dt });
+  }
+
+  return games;
+}
+
+function findAdoptions(games, username) {
+  games.sort((a, b) => a.dt - b.dt);
+
+  const adoptions = [];
+  let curOpponent = null, curTC = null, sittingLastDt = null;
+  let curStreak = [], bestStreak = [];
+
+  function closeSitting() {
+    if (bestStreak.length >= 10) {
+      adoptions.push({
+        opponent: curOpponent,
+        time_control: curTC,
+        streak: bestStreak.length,
+        date_start: bestStreak[0].dt,
+        date_end: bestStreak[bestStreak.length - 1].dt,
+      });
+    }
+  }
+
+  function resetSitting(g) {
+    if (g) {
+      curOpponent = g.opponent; curTC = g.time_control; sittingLastDt = g.dt;
+      curStreak = g.outcome === "win" ? [g] : [];
+      bestStreak = [...curStreak];
+    } else {
+      curOpponent = null; curTC = null; sittingLastDt = null;
+      curStreak = []; bestStreak = [];
+    }
+  }
+
+  for (const g of games) {
+    const gapBroken = sittingLastDt && (g.dt - sittingLastDt) > 86400000;
+    const sameKey = g.opponent === curOpponent && g.time_control === curTC;
+
+    if (!curOpponent) {
+      if (g.outcome === "win") resetSitting(g);
+      else sittingLastDt = g.dt;
+    } else if (gapBroken || !sameKey) {
+      closeSitting();
+      if (g.outcome === "win") resetSitting(g);
+      else { resetSitting(null); sittingLastDt = g.dt; }
+    } else if (g.outcome === "win") {
+      curStreak.push(g);
+      if (curStreak.length > bestStreak.length) bestStreak = [...curStreak];
+      sittingLastDt = g.dt;
+    } else {
+      curStreak = []; sittingLastDt = g.dt;
+    }
+  }
+
+  closeSitting();
+  return adoptions;
+}
+
+function show(id) {
+  ["search-view","progress-view","results-view"].forEach(v => {
+    const el = document.getElementById(v);
+    el.style.display = v === id ? (id === "search-view" || id === "progress-view" ? "flex" : "block") : "none";
+  });
+}
+
+function setProgress(pct, status) {
+  document.getElementById("progress-fill").style.width = pct + "%";
+  document.getElementById("progress-status").textContent = status;
+}
+
+function renderResults(profile, adoptions, totalGames) {
+  const avatarWrap = document.getElementById("profile-avatar-wrap");
+  if (profile.avatar) {
+    avatarWrap.innerHTML = `<img class="profile-avatar" src="${profile.avatar}" alt="">`;
+  } else {
+    avatarWrap.innerHTML = `<div class="profile-avatar-placeholder">♟</div>`;
+  }
+  document.getElementById("profile-username").textContent = profile.username;
+
+  const joined = profile.joined ? new Date(profile.joined * 1000).getFullYear() : "—";
+  const rating = profile.chess_rapid?.last?.rating || profile.chess_blitz?.last?.rating || profile.chess_bullet?.last?.rating || "—";
+  document.getElementById("profile-meta").innerHTML =
+    `member since <span>${joined}</span> · rating <span>${rating}</span>`;
+
+  const opponents = new Set(adoptions.map(a => a.opponent)).size;
+  const best = adoptions.length ? Math.max(...adoptions.map(a => a.streak)) : 0;
+  document.getElementById("stat-adoptions").textContent = adoptions.length;
+  document.getElementById("stat-best").textContent = best || "—";
+  document.getElementById("stat-opponents").textContent = opponents || "—";
+  document.getElementById("stat-games").textContent = totalGames.toLocaleString();
+  document.getElementById("section-count").textContent = `${adoptions.length} total`;
+
+  const tbody = document.getElementById("adoptions-tbody");
+  tbody.innerHTML = "";
+
+  if (adoptions.length === 0) {
+    document.getElementById("empty-state").style.display = "block";
+  } else {
+    document.getElementById("empty-state").style.display = "none";
+    adoptions.forEach((a, i) => {
+      const date = a.date_start.toISOString().slice(0, 10);
+      const tc = formatTC(a.time_control);
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="td-num">${i + 1}</td>
+        <td class="td-opponent">${a.opponent}</td>
+        <td class="td-tc">${tc}</td>
+        <td class="td-date">${date}</td>
+        <td class="td-streak">${a.streak}<span class="streak-suffix">×</span></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  show("results-view");
+}
+
+
+async function run(username) {
+  const err = document.getElementById("search-error");
+  err.textContent = "";
+  show("progress-view");
+  setProgress(0, "checking user…");
+
+  try {
+    const profileRes = await fetch(`https://api.chess.com/pub/player/${username}`, { headers: HEADERS });
+    if (profileRes.status === 404) {
+      show("search-view");
+      err.textContent = `user "${username}" not found on chess.com`;
+      document.getElementById("search-btn").disabled = false;
+      return;
+    }
+    if (!profileRes.ok) throw new Error(`HTTP ${profileRes.status}`);
+    const profile = await profileRes.json();
+
+    const statsRes = await fetch(`https://api.chess.com/pub/player/${username}/stats`, { headers: HEADERS });
+    const stats = statsRes.ok ? await statsRes.json() : {};
+    profile.chess_rapid  = stats.chess_rapid;
+    profile.chess_blitz  = stats.chess_blitz;
+    profile.chess_bullet = stats.chess_bullet;
+
+    setProgress(5, "fetching archive list…");
+    const archivesRes = await fetch(`https://api.chess.com/pub/player/${username}/games/archives`, { headers: HEADERS });
+    if (!archivesRes.ok) throw new Error("failed to fetch archives");
+    const { archives } = await archivesRes.json();
+
+    const allGames = [];
+    for (let i = 0; i < archives.length; i++) {
+      const url = archives[i];
+      const month = url.split("/").slice(-2).join("/");
+      const pct = 5 + Math.round(((i + 1) / archives.length) * 90);
+      setProgress(pct, `${month}  (${i + 1}/${archives.length})`);
+
+      try {
+        const r = await fetch(url + "/pgn", { headers: HEADERS });
+        if (!r.ok) continue;
+        const pgn = await r.text();
+        allGames.push(...parsePGN(pgn, username));
+      } catch { /* skip month */ }
+    }
+
+    setProgress(97, "scanning for adoptions…");
+    await new Promise(r => setTimeout(r, 50)); 
+
+    const adoptions = findAdoptions(allGames, username);
+    setProgress(100, "done");
+
+    await new Promise(r => setTimeout(r, 200));
+    renderResults(profile, adoptions, allGames.length);
+
+  } catch (e) {
+    show("search-view");
+    document.getElementById("search-error").textContent = "something went wrong — try again";
+    document.getElementById("search-btn").disabled = false;
+    console.error(e);
+  }
+}
+
+document.getElementById("search-btn").addEventListener("click", () => {
+  const username = document.getElementById("username-input").value.trim();
+  if (!username) return;
+  document.getElementById("search-btn").disabled = true;
+  run(username).finally(() => { document.getElementById("search-btn").disabled = false; });
+});
+
+document.getElementById("username-input").addEventListener("keydown", e => {
+  if (e.key === "Enter") document.getElementById("search-btn").click();
+});
+
+document.getElementById("new-search-btn").addEventListener("click", () => {
+  show("search-view");
+  document.getElementById("username-input").value = "";
+  document.getElementById("search-error").textContent = "";
+});
+</script>
+</body>
+</html>
