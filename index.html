@@ -542,6 +542,42 @@ function findAdoptions(games) {
   return adoptions;
 }
 
+function findBestStreak(games) {
+  games.sort((a, b) => a.dt - b.dt);
+
+  let curOpponent = null;
+  let curTC = null;
+  let lastDt = null;
+
+  let cur = 0;
+  let best = 0;
+
+  for (const g of games) {
+    const gapBroken = lastDt && (g.dt - lastDt) > 86400000;
+
+    const same =
+      g.opponent === curOpponent &&
+      g.time_control === curTC;
+
+    if (!same || gapBroken) {
+      curOpponent = g.opponent;
+      curTC = g.time_control;
+      cur = (g.outcome === "win") ? 1 : 0;
+    } else {
+      if (g.outcome === "win") {
+        cur++;
+      } else {
+        cur = 0;
+      }
+    }
+
+    best = Math.max(best, cur);
+    lastDt = g.dt;
+  }
+
+  return best;
+}
+
 function show(id) {
   ["search-view", "progress-view", "results-view"].forEach(v => {
     const el = document.getElementById(v);
@@ -571,10 +607,10 @@ function renderResults(profile, adoptions, totalGames) {
     `member since <span>${joined}</span><br>bullet <span>${bullet}</span> · blitz <span>${blitz}</span> · rapid <span>${rapid}</span>`;
 
   const opponents = new Set(adoptions.map(a => a.opponent)).size;
-  const best = adoptions.length ? Math.max(...adoptions.map(a => a.streak)) : 0;
+  const best = findBestStreak(window.allGames || []);
   document.getElementById("stat-adoptions").textContent = adoptions.length;
   document.getElementById("stat-best").textContent = best || "—";
-  document.getElementById("stat-opponents").textContent = opponents || "—";
+  document.getElementById("stat-opponents").textContent = opponents;
   document.getElementById("stat-games").textContent = totalGames.toLocaleString();
   document.getElementById("section-count").textContent = `${adoptions.length} total`;
 
@@ -656,6 +692,7 @@ async function run(username) {
     setProgress(100, "done");
 
     await new Promise(r => setTimeout(r, 200));
+    window.allGames = allGames;
     renderResults(profile, adoptions, allGames.length);
 
   } catch (e) {
