@@ -414,6 +414,19 @@ function formatTC(tc) {
   return inc ? `${fmtSecs(base)} + ${fmtInc(inc)}` : fmtSecs(base);
 }
 
+function isDailyTimeControl(tc) {
+  if (!tc) return false;
+
+  const daily = tc.match(/^(\d+)\/(\d+)$/);
+
+  if (daily) {
+    const seconds = parseInt(daily[2]);
+    return seconds >= 86400;
+  }
+
+  return false;
+}
+
 function parseGamesJSON(games, username) {
   const uname = username.toLowerCase();
   const result = [];
@@ -431,6 +444,9 @@ function parseGamesJSON(games, username) {
     const tag = name => { const m = pgn.match(new RegExp(`\\[${name} "([^"]*)"`)); return m ? m[1] : null; };
 
     const tc = tag("TimeControl") || (g.time_control ? String(g.time_control) : null);
+
+    if (isDailyTimeControl(tc)) continue;
+
     const utcDate = tag("UTCDate");
     const utcTime = tag("UTCTime") || "00:00:00";
     const resultStr = tag("Result") || (g.white?.result === "win" ? "1-0" : g.black?.result === "win" ? "0-1" : "1/2-1/2");
