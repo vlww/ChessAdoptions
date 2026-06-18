@@ -9,7 +9,7 @@ HEADERS = {"User-Agent": "ChessAdoptionTracker/1.0"}
 BASE = f"https://api.chess.com/pub/player/{USERNAME}"
 
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
+# download/parse pgns
 
 def get_archives():
     r = requests.get(f"{BASE}/games/archives", headers=HEADERS, timeout=30)
@@ -28,7 +28,7 @@ def parse_pgn_games(pgn_text):
     Yield dicts with the fields we need from each game header.
     Returns: white, black, result, time_control, utc_datetime
     """
-    # Split on blank lines before [Event
+    # split on blank lines before [Event
     blocks = re.split(r'\n(?=\[Event )', pgn_text.strip())
 
     for block in blocks:
@@ -43,8 +43,8 @@ def parse_pgn_games(pgn_text):
         black = tag("Black")
         result = tag("Result")
         tc = tag("TimeControl")
-        utc_date = tag("UTCDate")   # e.g. 2024.03.15
-        utc_time = tag("UTCTime")   # e.g. 23:58:42
+        utc_date = tag("UTCDate") 
+        utc_time = tag("UTCTime") 
 
         if not all([white, black, result, tc, utc_date]):
             continue
@@ -58,14 +58,13 @@ def parse_pgn_games(pgn_text):
         yield {
             "white": white.lower(),
             "black": black.lower(),
-            "result": result,        # "1-0", "0-1", "1/2-1/2"
+            "result": result,        # 1-0, 0-1, 1/2-1/2
             "time_control": tc,
             "dt": dt,
         }
 
 
 def format_tc(tc):
-    """Convert raw time control like '180+2' to a human-readable string."""
     m = re.match(r'^(\d+)(?:\+(\d+))?$', tc)
     if not m:
         return tc
@@ -84,24 +83,9 @@ def format_tc(tc):
     return f"{base_str}+{inc}sec" if inc else base_str
 
 
-# ── Core logic ─────────────────────────────────────────────────────────────────
+# adoption finder
 
 def find_adoptions(games, username):
-    """
-    Walk the full global game timeline in order.
-
-    A "sitting" is a contiguous run of games against the same opponent at the
-    same time control, with no other opponents interleaved and no 24h+ gap.
-
-    Within a sitting, losses/draws reset the current win streak but do NOT
-    end the sitting. At the end of each sitting we record only the single
-    best (longest) win streak — if it's >= 10, it counts as one adoption.
-
-    Sitting breaks on:
-      - any game against a DIFFERENT opponent
-      - a different time control vs the same opponent
-      - a gap of more than 24 hours between consecutive games in the sitting
-    """
     username = username.lower()
 
     timeline = []
@@ -136,12 +120,11 @@ def find_adoptions(games, username):
 
     adoptions = []
 
-    # Sitting state
     cur_opponent = None
     cur_tc = None
     sitting_last_dt = None
 
-    # Within the sitting: current win streak and best win streak so far
+    # current win streak and best win streak so far
     cur_streak = []
     best_streak = []
 
@@ -179,14 +162,14 @@ def find_adoptions(games, username):
                     g["time_control"] == cur_tc)
 
         if cur_opponent is None:
-            # No active sitting
+            # no active sitting
             if g["outcome"] == "win":
                 reset_sitting(g)
             else:
                 sitting_last_dt = g["dt"]
 
         elif gap_broken or not same_key:
-            # Sitting ends
+            # sitting ends
             close_sitting()
             if g["outcome"] == "win":
                 reset_sitting(g)
@@ -195,14 +178,14 @@ def find_adoptions(games, username):
                 sitting_last_dt = g["dt"]
 
         elif g["outcome"] == "win":
-            # Continue win streak within sitting
+            # continue win streak within sitting
             cur_streak.append(g)
             if len(cur_streak) > len(best_streak):
                 best_streak = list(cur_streak)
             sitting_last_dt = g["dt"]
 
         else:
-            # Loss or draw: reset win streak, sitting continues
+            # loss or draw
             cur_streak = []
             sitting_last_dt = g["dt"]
 
@@ -213,7 +196,7 @@ def find_adoptions(games, username):
 
 
 
-# ── Main ───────────────────────────────────────────────────────────────────────
+# main
 
 def main():
     print(f"\nFetching archives for {USERNAME}...")
@@ -231,7 +214,7 @@ def main():
             print(f"({len(games)} games)")
             time.sleep(0.1)
         except Exception as e:
-            print(f"\n  ⚠ Skipped: {e}")
+            print(f"\n  Skipped: {e}")
 
     print(f"\nTotal games parsed: {len(all_games):,}")
     print("Scanning for adoptions (10+ consecutive wins)...\n")
@@ -247,8 +230,6 @@ def main():
 
     for n, a in enumerate(adoptions, 1):
         date_str = a["date_start"].strftime("%Y-%m-%d")
-        if a["date_start"].date() != a["date_end"].date():
-            date_str += " → " + a["date_end"].strftime("%Y-%m-%d")
         tc_human = format_tc(a["time_control"])
         print(f"{n:<4} {a['opponent']:<25} {tc_human:<18} {a['streak']:>6}x  {date_str}")
 
